@@ -4,6 +4,17 @@
 
 #include "lz77.h"
 
+/*
+ * Give hints to the compiler for branch prediction optimization.
+ */
+#if defined(__GNUC__)
+#define likely(x)       __builtin_expect(!!(x), 1)
+#define unlikely(x)     __builtin_expect(!!(x), 0)
+#else
+#define likely(x)		(x)
+#define unlikely(x)		(x)
+#endif
+
 int lz77_l1_compress(const void* input, int length, void* output)
 {
 	return 0;
