@@ -1,5 +1,20 @@
 # Overview
+
 lz77 (MIT license) is an ANSI C/C90 implementation of Lempel-Ziv 77 algorithm of lossless data compression.
+
+# Lossless compression benchmark corpora
+
+introduction to the three main lossless compression benchmark corpora：
+- Canterbury: This is one of the most commonly used corpora for benchmarking lossless compression algorithms. It was created by the University
+of Canterbury. It contains 11 files of different types, with a total size of around 3.2 MB. The files cover texts, source code, literary works
+and more, allowing comprehensive evaluation of lossless compression performance.
+- Silesia: This larger corpus was created by the Silesian University of Technology in Poland. It contains 205 files across 5 different partitio
+ns, with more diverse file types and a total size over 200 MB. It focuses on evaluating lossless compression on large files.
+- Enwik9: This corpus is based on the English Wikipedia. It contains a single, approximately 1 GB sized text file. It is used to test the compr
+ession ratio and throughput of lossless data compression algorithms when dealing with extremely large inputs.
+
+In summary, the three corpora cover small to large file scenarios, and are all commonly used benchmarks for evaluating lossless compression alg
+orithms.
 
 # Round-trip check
 
