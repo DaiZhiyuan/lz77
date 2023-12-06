@@ -114,6 +114,25 @@ static uint32_t lz77_memcmp(const uint8_t* p, const uint8_t* q, const uint8_t* l
 	return p - start;
 }
 
+static uint8_t* lz77_literals(uint32_t runs, const uint8_t* src, uint8_t* dest)
+{
+	while (runs >= MAX_COPY) {
+		*dest++ = MAX_COPY - 1;
+		lz77_maxcopy(dest, src);
+		src += MAX_COPY;
+		dest += MAX_COPY;
+		runs -= MAX_COPY;
+	}
+
+	if (runs > 0) {
+		*dest++ = runs - 1;
+		lz77_smallcopy(dest, src, runs);
+		dest += runs;
+	}
+
+	return dest;
+}
+
 int lz77_compress(const void* input, int length, void* output)
 {
 	return 0;
