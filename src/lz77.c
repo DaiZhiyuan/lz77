@@ -6,9 +6,6 @@
 #include <stdint.h>
 #include <string.h>
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-function"
-
 /*
  * Give hints to the compiler for branch prediction optimization.
  */
@@ -278,4 +275,3 @@ int lz77_decompress(const void* input, int length, void* output, int maxout)
 	return op - (uint8_t*)output;
 }
 
-#pragma GCC diagnostic pop
