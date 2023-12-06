@@ -38,6 +38,11 @@ static uint16_t lz77_hash(uint32_t v)
 	return h & HASH_MASK;
 }
 
+static void lz77_memcpy(uint8_t* dest, const uint8_t* src, uint32_t count)
+{
+	memcpy(dest, src, count);
+}
+
 /* special case of memcpy: at most MAX_COPY bytes */
 static void lz77_smallcopy(uint8_t* dest, const uint8_t* src, uint32_t count)
 {
@@ -52,6 +57,8 @@ static void lz77_smallcopy(uint8_t* dest, const uint8_t* src, uint32_t count)
 			src += 4;
 		}
 	}
+
+	lz77_memcpy(dest, src, count);
 }
 
 /* special case of memcpy: exactly MAX_COPY bytes */
@@ -90,11 +97,6 @@ static void lz77_memmove(uint8_t* dest, const uint8_t* src, uint32_t count)
 				break;
 		}
 	}
-}
-
-static void lz77_memcpy(uint8_t* dest, const uint8_t* src, uint32_t count)
-{
-	memcpy(dest, src, count);
 }
 
 static uint32_t lz77_readu32(const void* p)
