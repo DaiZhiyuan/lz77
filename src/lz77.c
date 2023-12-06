@@ -21,6 +21,7 @@
 #endif
 
 #define MAX_COPY		32
+#define MAX_LEN			264 /* 256 + 8 */
 
 #define HASH_LOG		13
 #define HASH_SIZE		(1 << HASH_LOG)
@@ -112,6 +113,31 @@ static uint32_t lz77_memcmp(const uint8_t* p, const uint8_t* q, const uint8_t* l
 	}
 
 	return p - start;
+}
+
+static uint8_t* lz77_match(uint32_t len, uint32_t distance, uint8_t* op)
+{
+	--distance;
+
+	if (unlikely(len > MAX_LEN - 2)) {
+		while (len > MAX_LEN - 2) {
+			*op++ = (7 << 5) + (distance >> 8);
+			*op++ = MAX_LEN - 2 - 7 - 2;
+			*op++ = (distance & 255);
+			len -= MAX_LEN - 2;
+		}
+	}
+
+	if (len < 7) {
+		*op++ = (len << 5) + (distance >> 8);
+		*op++ = (distance & 255);
+	} else {
+		*op++ = (7 << 5) + (distance >> 8);
+		*op++ = len - 7;
+		*op++ = (distance & 255);
+	}
+
+	return op;
 }
 
 static uint8_t* lz77_literals(uint32_t runs, const uint8_t* src, uint8_t* dest)
