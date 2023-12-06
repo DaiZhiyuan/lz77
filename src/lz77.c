@@ -28,6 +28,9 @@
 #define HASH_SIZE		(1 << HASH_LOG)
 #define HASH_MASK		(HASH_SIZE - 1)
 
+#define LZ77_BOUND_CHECK(cond) \
+	if (unlikely(!(cond))) return 0;
+
 static uint16_t lz77_hash(uint32_t v)
 {
 	uint32_t h = (v * 2654435769LL) >> (32 - HASH_LOG);
@@ -231,7 +234,46 @@ int lz77_compress(const void* input, int length, void* output)
 
 int lz77_decompress(const void* input, int length, void* output, int maxout)
 {
-	return 0;
+	const uint8_t* ip = (const uint8_t*)input;
+	const uint8_t* ip_limit = ip + length;
+	const uint8_t* ip_bound = ip_limit - 2;
+	uint8_t* op = (uint8_t*)output;
+	uint8_t* op_limit = op + maxout;
+	uint32_t ctrl = (*ip++) & 31;
+
+	while (1) {
+		if (ctrl >= 32) {
+			uint32_t len = (ctrl >> 5) - 1;
+			uint32_t ofs = (ctrl & 31) << 8;
+			const uint8_t* ref = op - ofs - 1;
+
+			if (len == 7 - 1) {
+				LZ77_BOUND_CHECK(ip <= ip_bound);
+				len += *ip++;
+			}
+
+			ref -= *ip++;
+			len += 3;
+			LZ77_BOUND_CHECK(op + len <= op_limit);
+			LZ77_BOUND_CHECK(ref >= (uint8_t*)output);
+			lz77_memmove(op, ref, len);
+			op += len;
+		} else {
+			ctrl++;
+			LZ77_BOUND_CHECK(op + ctrl <= op_limit);
+			LZ77_BOUND_CHECK(ip + ctrl <= ip_limit);
+			lz77_memcpy(op, ip, ctrl);
+			ip += ctrl;
+			op += ctrl;
+		}
+
+		if (unlikely(ip > ip_bound))
+			break;
+
+		ctrl = *ip++;
+	}
+
+	return op - (uint8_t*)output;
 }
 
 #pragma GCC diagnostic pop
