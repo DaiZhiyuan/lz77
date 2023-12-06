@@ -1,2 +1,40 @@
 # Overview
 lz77 (MIT license) is an ANSI C/C90 implementation of Lempel-Ziv 77 algorithm of lossless data compression.
+
+# Round-trip check
+
+check steps:
+1. read the content of the file.
+2. compress it first using `lz77_compress` API compressor.
+3. decompress the output with `lz77_decompress` API decompressor.
+4. compare the result with the original file content.
+
+```
+● ./test_lz77
+Test round-trip for lz77
+
+   canterbury/alice29.txt     152089  ->      85455  (56.19%)
+  canterbury/asyoulik.txt     125179  ->      74529  (59.54%)
+       canterbury/cp.html      24603  ->      12134  (49.32%)
+      canterbury/fields.c      11150  ->       4734  (42.46%)
+   canterbury/grammar.lsp       3721  ->       1782  (47.89%)
+   canterbury/kennedy.xls    1029744  ->     405371  (39.37%)
+    canterbury/lcet10.txt     426754  ->     233287  (54.67%)
+  canterbury/plrabn12.txt     481861  ->     300518  (62.37%)
+          canterbury/ptt5     513216  ->      81298  (15.84%)
+           canterbury/sum      38240  ->      20520  (53.66%)
+       canterbury/xargs.1       4227  ->       2471  (58.46%)
+          silesia/dickens   10192446  ->    6060465  (59.46%)
+          silesia/mozilla   51220480  ->   26987850  (52.69%)
+               silesia/mr    9970564  ->    5073702  (50.89%)
+              silesia/nci   33553445  ->    6924012  (20.64%)
+          silesia/ooffice    6152192  ->    4274280  (69.48%)
+             silesia/osdb   10085684  ->    6639678  (65.83%)
+          silesia/reymont    6627202  ->    3303967  (49.85%)
+            silesia/samba   21606400  ->    8341626  (38.61%)
+              silesia/sao    7251944  ->    6387784  (88.08%)
+          silesia/webster   41458703  ->   20276326  (48.91%)
+            silesia/x-ray    8474240  ->    8197558  (96.74%)
+              silesia/xml    5345280  ->    1387943  (25.97%)
+         enwik/enwik8.txt  100000000  ->   55578364  (55.58%)
+```
