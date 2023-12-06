@@ -17,6 +17,39 @@
 #define unlikely(x)		(x)
 #endif
 
+#define MAX_COPY		32
+
+/* special case of memcpy: at most MAX_COPY bytes */
+static void lz77_smallcopy(uint8_t* dest, const uint8_t* src, uint32_t count)
+{
+	if (count >= 4) {
+		const uint32_t* p = (const uint32_t*)src;
+		uint32_t* q = (uint32_t*)dest;
+
+		while (count > 4) {
+			*q++ = *p++;
+			count -= 4;
+			dest += 4;
+			src += 4;
+		}
+	}
+}
+
+/* special case of memcpy: exactly MAX_COPY bytes */
+static void lz77_maxcopy(void* dest, const void* src)
+{
+	const uint32_t* p = (const uint32_t*)src;
+	uint32_t* q = (uint32_t*)dest;
+	*q++ = *p++;
+	*q++ = *p++;
+	*q++ = *p++;
+	*q++ = *p++;
+	*q++ = *p++;
+	*q++ = *p++;
+	*q++ = *p++;
+	*q++ = *p++;
+}
+
 static void lz77_memmove(uint8_t* dest, const uint8_t* src, uint32_t count)
 {
 	if ((count > 4) && (dest >= src + count)) {
