@@ -22,6 +22,7 @@
 
 #define MAX_COPY		32
 #define MAX_LEN			264 /* 256 + 8 */
+#define MAX_DISTANCE	8192
 
 #define HASH_LOG		13
 #define HASH_SIZE		(1 << HASH_LOG)
@@ -161,7 +162,71 @@ static uint8_t* lz77_literals(uint32_t runs, const uint8_t* src, uint8_t* dest)
 
 int lz77_compress(const void* input, int length, void* output)
 {
-	return 0;
+	const uint8_t* ip = (const uint8_t*)input;
+	const uint8_t* ip_start = ip;
+	const uint8_t* ip_bound = ip + length - 4; /* because readU32 */
+	const uint8_t* ip_limit = ip + length - 12 - 1;
+	uint8_t* op = (uint8_t*)output;
+
+	uint32_t htab[HASH_SIZE];
+	uint32_t seq, hash;
+
+	/* initializes hash table */
+	for (hash = 0; hash < HASH_SIZE; ++hash)
+		htab[hash] = 0;
+
+	/* we start with literal copy */
+	const uint8_t* anchor = ip;
+	ip += 2;
+
+	/* main loop */
+	while (likely(ip < ip_limit)) {
+		const uint8_t* ref;
+		uint32_t distance, cmp;
+
+		/* find potential match */
+		do {
+			seq = lz77_readu32(ip) & 0xffffff;
+			hash = lz77_hash(seq);
+			ref = ip_start + htab[hash];
+			htab[hash] = ip - ip_start;
+			distance = ip - ref;
+			cmp = likely(distance < MAX_DISTANCE) ? lz77_readu32(ref) & 0xffffff : 0x1000000;
+
+			if (unlikely(ip >= ip_limit))
+				break;
+
+			++ip;
+		} while (seq != cmp);
+
+		if (unlikely(ip >= ip_limit))
+			break;
+
+		--ip;
+
+		if (likely(ip > anchor)) {
+			op = lz77_literals(ip - anchor, anchor, op);
+		}
+
+		uint32_t len = lz77_memcmp(ref + 3, ip + 3, ip_bound);
+		op = lz77_match(len, distance, op);
+
+		/* update the hash at match boundary */
+		ip += len;
+		seq = lz77_readu32(ip);
+		hash = lz77_hash(seq & 0xffffff);
+		htab[hash] = ip++ - ip_start;
+		seq >>= 8;
+		hash = lz77_hash(seq);
+		htab[hash] = ip++ - ip_start;
+
+		anchor = ip;
+	}
+
+	uint32_t copy = (uint8_t*)input + length - anchor;
+	op = lz77_literals(copy, anchor, op);
+
+	return op - (uint8_t*)output;
 }
 
 int lz77_decompress(const void* input, int length, void* output, int maxout)
