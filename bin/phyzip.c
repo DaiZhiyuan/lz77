@@ -4,6 +4,38 @@
 #define LZ77_VERSION_STRING "1.0"
 #define PHYZIP_VERSION_STRING "1.2.3"
 
+/* magic identifier for phyzip file */
+static unsigned char phyzip_magic[8] = {'$', 'p', 'h', 'y', 'z', 'i', 'p', '$'};
+
+void write_magic(FILE* file)
+{
+	fwrite(phyzip_magic, 8, 1, file);
+}
+
+int pack_file(const char *input_file, const char *output_file)
+{
+	FILE *file;
+	int result;
+
+	file = fopen(output_file, "rb");
+	if (file) {
+		printf("Error: file %s already exists. Aborted.\n\n", output_file);
+		fclose(file);
+		return -1;
+	}
+
+	file = fopen(output_file, "wb");
+	if (!file) {
+		printf("Error: could not create %s. Aborted.\n\n", output_file);
+		return -1;
+	}
+
+	write_magic(file);
+	fclose(file);
+
+	return result;
+}
+
 void usage(void)
 {
 	printf("phyzip: high-speed file compression tool\n");
@@ -65,7 +97,5 @@ int main(int argc, char **argv)
 		}
 	}
 
-	printf("Input file: %s, Output file: %s\n", input_file, output_file);
-
-	return 0;
+	return pack_file(input_file, output_file);
 }
