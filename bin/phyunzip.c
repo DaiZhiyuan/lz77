@@ -106,6 +106,10 @@ int unpack_file(const char *input_file)
 	unsigned long chunk_checksum;
 	unsigned long chunk_extra;
 	unsigned char buffer[BLOCK_SIZE];
+	unsigned long checksum;
+	unsigned long decompressed_size;
+	unsigned long total_extracted;
+	int file_name_length;
 
 	/* sanity check */
 	in = fopen(input_file, "rb");
@@ -137,14 +141,26 @@ int unpack_file(const char *input_file)
 			break;
 
 		read_chunk_header(in, &chunk_id, &chunk_options, &chunk_size, &chunk_checksum, &chunk_extra);
-		printf("id: %d\n", chunk_id);
-		printf("opt: %d\n", chunk_options);
-		printf("size: %lu\n", chunk_size);
-		printf("crc32: %lu\n", chunk_checksum);
-		printf("extra: %lu\n", chunk_extra);
 
 		if ((chunk_id == 1) && (chunk_size > 10) && (chunk_size < BLOCK_SIZE)) {
 			fread(buffer, 1, chunk_size, in);
+			checksum = update_adler32(1L, buffer, chunk_size);
+
+			if (checksum != chunk_checksum) {
+				printf("\nError: checksum mismatch!\n");
+				printf("Got %08lX Expecting %08lX\n", checksum, chunk_checksum);
+				fclose(in);
+				return -1;
+			}
+
+			total_extracted = 0;
+
+			decompressed_size = readU32(buffer);
+			printf("Decompressed size: 0x%lx\n", decompressed_size);
+
+			file_name_length = (int)readU16(buffer + 8);
+			printf("File name length: %d\n", file_name_length);
+
 		}
 	#if 0
 		if ((chunk_id == 17) && f && output_file && decompressed_size) {
