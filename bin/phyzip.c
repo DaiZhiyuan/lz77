@@ -36,6 +36,7 @@ int pack_file_compressed(const char* input_file, FILE* output_file)
 {
 	FILE *in;
 	unsigned long fsize;
+	const char* shown_name;
 
 	in = fopen(input_file, "rb");
 	if (!in) {
@@ -52,6 +53,16 @@ int pack_file_compressed(const char* input_file, FILE* output_file)
 		fclose(in);
 		return -1;
 	}
+
+	/* truncate directory prefix, e.g. "/path/to/FILE.txt" becomes "FILE.txt" */
+	shown_name = input_file + strlen(input_file) - 1;
+	while (shown_name > input_file)
+		if (*(shown_name - 1) == '/')
+			break;
+		else
+			shown_name--;
+
+	printf("file name: %s\n", shown_name);
 
 	return 0;
 }
