@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #define LZ77_VERSION_STRING "1.0"
 #define PHYZIP_VERSION_STRING "1.2.3"
@@ -97,7 +98,7 @@ void read_chunk_header(FILE* file, int* id, int* options, unsigned long* size, u
 
 int unpack_file(const char *input_file)
 {
-	FILE *in;
+	FILE *in, *out;
 	unsigned long fsize;
 	size_t pos;
 	int chunk_id;
@@ -110,6 +111,8 @@ int unpack_file(const char *input_file)
 	unsigned long decompressed_size;
 	unsigned long total_extracted;
 	int file_name_length;
+	char* output_file_name;
+	int c;
 
 	/* sanity check */
 	in = fopen(input_file, "rb");
@@ -159,8 +162,32 @@ int unpack_file(const char *input_file)
 			printf("Decompressed size: 0x%lx\n", decompressed_size);
 
 			file_name_length = (int)readU16(buffer + 8);
+			if (file_name_length > (int)chunk_size - 10)
+				file_name_length = chunk_size - 10;
 			printf("File name length: %d\n", file_name_length);
 
+			output_file_name = (char*)malloc(file_name_length + 1);
+			memset(output_file_name, 0, file_name_length + 1);
+			for (c = 0; c < file_name_length; c++)
+				output_file_name[c] = buffer[10 + c];
+
+			printf("Orig file name is [%s]\n", output_file_name);
+
+			/* check if already exists */
+			out = fopen(output_file_name, "rb");
+			if (out) {
+				printf("File %s already exists. Skipped.\n", output_file_name);
+				fclose(out);
+				return -1;
+			} else {
+				/* create the file */
+				out = fopen(output_file_name, "wb");
+				if (!out) {
+					printf("Can't create file %s. Skipped.\n", output_file_name);
+					return -1;
+				}
+			}
+			printf("Create file %s.\n", output_file_name);
 		}
 	#if 0
 		if ((chunk_id == 17) && f && output_file && decompressed_size) {
