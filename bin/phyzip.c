@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "lz77.h"
+
 #define LZ77_VERSION_STRING "1.0"
 #define PHYZIP_VERSION_STRING "1.2.3"
 
@@ -108,8 +110,11 @@ int pack_file_compressed(const char* input_file, FILE* output_file)
 	unsigned long fsize;
 	const char* shown_name;
 	unsigned char buffer[BLOCK_SIZE];
+	unsigned char result[BLOCK_SIZE * 2];
 	unsigned long checksum;
-	unsigned long total_compressed;
+	unsigned long total_read;
+	size_t bytes_read;
+	int chunk_size;
 
 	in = fopen(input_file, "rb");
 	if (!in) {
@@ -135,8 +140,6 @@ int pack_file_compressed(const char* input_file, FILE* output_file)
 		else
 			shown_name--;
 
-	printf("file name: %s\n", shown_name);
-
 	buffer[0] = fsize & 255;
 	buffer[1] = (fsize >> 8) & 255;
 	buffer[2] = (fsize >> 16) & 255;
@@ -148,22 +151,35 @@ int pack_file_compressed(const char* input_file, FILE* output_file)
 	buffer[8] = (strlen(shown_name) + 1) & 255;
 	buffer[9] = (strlen(shown_name) + 1) >> 8;
 
-	checksum = 1L;
-	checksum = update_adler32(checksum, buffer, 10);
-	printf("checksum: %lu\n", checksum);
-	checksum = update_adler32(checksum, shown_name, strlen(shown_name) + 1);
-	printf("checksum: %lu\n", checksum);
-	write_chunk_header(output_file, 1, 0, 10 + strlen(shown_name) + 1, checksum, 0);
-	fwrite(buffer, 10, 1, output_file);
-	fwrite(shown_name, strlen(shown_name) + 1, 1, output_file);
-	total_compressed = 16 + 10 + strlen(shown_name) + 1;
-
     /*
 	 * 00000000  24 70 68 79 7a 69 70 24  01 00 00 00 0f 00 00 00  |$phyzip$........|
 	 * 00000010  a5 01 21 06 00 00 00 00  09 00 00 00 00 00 00 00  |..!.............|
 	 * 00000020  05 00 4e 6f 74 65 00                              |..Note.|
 	 */
-	printf("total compressed: %lu\n", total_compressed);
+	checksum = 1L;
+	checksum = update_adler32(checksum, buffer, 10);
+	checksum = update_adler32(checksum, shown_name, strlen(shown_name) + 1);
+	write_chunk_header(output_file, 1, 0, 10 + strlen(shown_name) + 1, checksum, 0);
+	fwrite(buffer, 10, 1, output_file);
+	fwrite(shown_name, strlen(shown_name) + 1, 1, output_file);
+
+	while (1) {
+		bytes_read = fread(buffer, 1, BLOCK_SIZE, in);
+		total_read += bytes_read;
+
+		if (bytes_read == 0)
+			break;
+
+		chunk_size = lz77_compress(buffer, bytes_read, result);
+		checksum = update_adler32(1L, result, chunk_size);
+		write_chunk_header(output_file, 17, 1, chunk_size, checksum, bytes_read);
+		fwrite(result, 1, chunk_size, output_file);
+	} fclose(in);
+
+	if (total_read != fsize) {
+		printf("Error: reading %s failed!\n", input_file);
+		return -1;
+	}
 
 	return 0;
 }
