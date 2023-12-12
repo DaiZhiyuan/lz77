@@ -12,6 +12,50 @@ void write_magic(FILE* file)
 	fwrite(phyzip_magic, 8, 1, file);
 }
 
+int detect_magic(FILE* file)
+{
+	unsigned char buffer[8];
+	size_t bytes_read;
+	int c;
+
+	fseek(file, SEEK_SET, 0);
+	bytes_read = fread(buffer, 1, 8, file);
+	fseek(file, SEEK_SET, 0);
+
+	if (bytes_read < 8)
+		return 0;
+
+	for (c = 0; c < 8; c++)
+		if (buffer[c] != phyzip_magic[c])
+			return 0;
+
+	return -1;
+}
+
+int pack_file_compressed(const char* input_file, FILE* output_file)
+{
+	FILE *in;
+	unsigned long fsize;
+
+	in = fopen(input_file, "rb");
+	if (!in) {
+		printf("Error: could not open %s\n", input_file);
+		return -1;
+	}
+
+	fseek(in, 0, SEEK_END);
+	fsize = ftell(in);
+	fseek(in, 0, SEEK_SET);
+
+	if (detect_magic(in)) {
+		printf("Error: file %s is already a phyzip archive!\n", input_file);
+		fclose(in);
+		return -1;
+	}
+
+	return 0;
+}
+
 int pack_file(const char *input_file, const char *output_file)
 {
 	FILE *file;
@@ -31,6 +75,7 @@ int pack_file(const char *input_file, const char *output_file)
 	}
 
 	write_magic(file);
+	result = pack_file_compressed(input_file, file);
 	fclose(file);
 
 	return result;
