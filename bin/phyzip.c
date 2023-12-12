@@ -4,6 +4,8 @@
 #define LZ77_VERSION_STRING "1.0"
 #define PHYZIP_VERSION_STRING "1.2.3"
 
+#define BLOCK_SIZE (2 * 64 * 1024)
+
 /* magic identifier for phyzip file */
 static unsigned char phyzip_magic[8] = {'$', 'p', 'h', 'y', 'z', 'i', 'p', '$'};
 
@@ -32,11 +34,82 @@ int detect_magic(FILE* file)
 	return -1;
 }
 
+void write_chunk_header(FILE* file, int id, int options, unsigned long size, unsigned long checksum, unsigned long extra)
+{
+	unsigned char buffer[16];
+
+	buffer[0] = id & 255;
+	buffer[1] = id >> 8;
+	buffer[2] = options & 255;
+	buffer[3] = options >> 8;
+	buffer[4] = size & 255;
+	buffer[5] = (size >> 8) & 255;
+	buffer[6] = (size >> 16) & 255;
+	buffer[7] = (size >> 24) & 255;
+	buffer[8] = checksum & 255;
+	buffer[9] = (checksum >> 8) & 255;
+	buffer[10] = (checksum >> 16) & 255;
+	buffer[11] = (checksum >> 24) & 255;
+	buffer[12] = extra & 255;
+	buffer[13] = (extra >> 8) & 255;
+	buffer[14] = (extra >> 16) & 255;
+	buffer[15] = (extra >> 24) & 255;
+
+	fwrite(buffer, 16, 1, file);
+}
+
+/* for Adler-32 checksum algorithm, see RFC 1950 Section 8.2 */
+#define ADLER32_BASE 65521
+static unsigned long update_adler32(unsigned long checksum, const void* buf, int len)
+{
+	const unsigned char* ptr = (const unsigned char*)buf;
+	unsigned long s1 = checksum & 0xffff;
+	unsigned long s2 = (checksum >> 16) & 0xffff;
+
+	while (len > 0) {
+		unsigned k = len < 5552 ? len : 5552;
+		len -= k;
+
+		while (k >= 8) {
+			s1 += *ptr++;
+			s2 += s1;
+			s1 += *ptr++;
+			s2 += s1;
+			s1 += *ptr++;
+			s2 += s1;
+			s1 += *ptr++;
+			s2 += s1;
+			s1 += *ptr++;
+			s2 += s1;
+			s1 += *ptr++;
+			s2 += s1;
+			s1 += *ptr++;
+			s2 += s1;
+			s1 += *ptr++;
+			s2 += s1;
+			k -= 8;
+		}
+
+		while (k-- > 0) {
+			s1 += *ptr++;
+			s2 += s1;
+		}
+
+		s1 = s1 % ADLER32_BASE;
+		s2 = s2 % ADLER32_BASE;
+	}
+
+	return (s2 << 16) + s1;
+}
+
 int pack_file_compressed(const char* input_file, FILE* output_file)
 {
 	FILE *in;
 	unsigned long fsize;
 	const char* shown_name;
+	unsigned char buffer[BLOCK_SIZE];
+	unsigned long checksum;
+	unsigned long total_compressed;
 
 	in = fopen(input_file, "rb");
 	if (!in) {
@@ -63,6 +136,34 @@ int pack_file_compressed(const char* input_file, FILE* output_file)
 			shown_name--;
 
 	printf("file name: %s\n", shown_name);
+
+	buffer[0] = fsize & 255;
+	buffer[1] = (fsize >> 8) & 255;
+	buffer[2] = (fsize >> 16) & 255;
+	buffer[3] = (fsize >> 24) & 255;
+	buffer[4] = (fsize >> 32) & 255;
+	buffer[5] = (fsize >> 40) & 255;
+	buffer[6] = (fsize >> 48) & 255;
+	buffer[7] = (fsize >> 56) & 255;
+	buffer[8] = (strlen(shown_name) + 1) & 255;
+	buffer[9] = (strlen(shown_name) + 1) >> 8;
+
+	checksum = 1L;
+	checksum = update_adler32(checksum, buffer, 10);
+	printf("checksum: %lu\n", checksum);
+	checksum = update_adler32(checksum, shown_name, strlen(shown_name) + 1);
+	printf("checksum: %lu\n", checksum);
+	write_chunk_header(output_file, 1, 0, 10 + strlen(shown_name) + 1, checksum, 0);
+	fwrite(buffer, 10, 1, output_file);
+	fwrite(shown_name, strlen(shown_name) + 1, 1, output_file);
+	total_compressed = 16 + 10 + strlen(shown_name) + 1;
+
+    /*
+	 * 00000000  24 70 68 79 7a 69 70 24  01 00 00 00 0f 00 00 00  |$phyzip$........|
+	 * 00000010  a5 01 21 06 00 00 00 00  09 00 00 00 00 00 00 00  |..!.............|
+	 * 00000020  05 00 4e 6f 74 65 00                              |..Note.|
+	 */
+	printf("total compressed: %lu\n", total_compressed);
 
 	return 0;
 }
