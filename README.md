@@ -53,3 +53,44 @@ Test round-trip for lz77
               silesia/xml    5345280  ->    1387943  (25.97%)
          enwik/enwik8.txt  100000000  ->   55578364  (55.58%)
 ```
+
+# Phyzip Compression and Decompression Test Cases
+
+Prepare a variety of input data samples:
+- enwik/enwik8.txt
+
+md5sum: a1fa5ffddb56f4953e226637dabbb36a
+size: 100M
+
+## Compression
+```
+● phy_zip
+phyzip: high-speed file compression tool
+
+Usage: phyzip [options] input-file output-file
+
+Options:
+  -v    show program version
+
+● time phy_zip /root/lz77/dataset/enwik/enwik8.txt enwik8.lz
+real    0m1.029s
+
+● du -sh enwik8.lz
+54M     enwik8.lz
+```
+
+## Decompression
+```
+● phy_unzip
+phyunzip: uncompress phyzip archive
+
+Usage: phyunzip archive-file
+
+● phy_unzip enwik8.lz
+
+● pwd
+/tmp
+
+● md5sum enwik8.txt
+a1fa5ffddb56f4953e226637dabbb36a  enwik8.txt
+```
