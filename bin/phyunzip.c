@@ -140,8 +140,6 @@ int unpack_file(const char *input_file)
 		return -1;
 	}
 
-	printf("Archive: %s\n", input_file);
-
 	/* position of first chunk */
 	fseek(in, 8, SEEK_SET);
 
@@ -166,19 +164,15 @@ int unpack_file(const char *input_file)
 			total_extracted = 0;
 
 			decompressed_size = readU32(buffer);
-			printf("Decompressed size: 0x%lx\n", decompressed_size);
 
 			file_name_length = (int)readU16(buffer + 8);
 			if (file_name_length > (int)chunk_size - 10)
 				file_name_length = chunk_size - 10;
-			printf("File name length: %d\n", file_name_length);
 
 			output_file_name = (char*)malloc(file_name_length + 1);
 			memset(output_file_name, 0, file_name_length + 1);
 			for (c = 0; c < file_name_length; c++)
 				output_file_name[c] = buffer[10 + c];
-
-			printf("Orig file name is [%s]\n", output_file_name);
 
 			/* check if already exists */
 			out = fopen(output_file_name, "rb");
@@ -194,11 +188,9 @@ int unpack_file(const char *input_file)
 					return -1;
 				}
 			}
-			printf("Create file %s.\n", output_file_name);
 		}
 
 		if ((chunk_id == 17) && out && output_file_name && decompressed_size) {
-			printf("Decompressed size: 0x%lx\n", decompressed_size);
 			/* enlarge input buffer if necessary */
 			if (chunk_size > compressed_bufsize) {
 				compressed_bufsize = chunk_size;
