@@ -2,6 +2,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "lz77.h"
+
 #define LZ77_VERSION_STRING "1.0"
 #define PHYZIP_VERSION_STRING "1.2.3"
 
@@ -110,9 +112,14 @@ int unpack_file(const char *input_file)
 	unsigned long checksum;
 	unsigned long decompressed_size;
 	unsigned long total_extracted;
+	unsigned long compressed_bufsize = 0;
+	unsigned long decompressed_bufsize = 0;
+	unsigned char* compressed_buffer;
+	unsigned char* decompressed_buffer;
 	int file_name_length;
 	char* output_file_name;
 	int c;
+	unsigned long remaining;
 
 	/* sanity check */
 	in = fopen(input_file, "rb");
@@ -189,14 +196,58 @@ int unpack_file(const char *input_file)
 			}
 			printf("Create file %s.\n", output_file_name);
 		}
-	#if 0
-		if ((chunk_id == 17) && f && output_file && decompressed_size) {
 
+		if ((chunk_id == 17) && out && output_file_name && decompressed_size) {
+			printf("Decompressed size: 0x%lx\n", decompressed_size);
+			/* enlarge input buffer if necessary */
+			if (chunk_size > compressed_bufsize) {
+				compressed_bufsize = chunk_size;
+				free(compressed_buffer);
+				compressed_buffer = (unsigned char*)malloc(compressed_bufsize);
+			}
+
+			/* enlarge output buffer if necessary */
+			if (chunk_extra > decompressed_bufsize) {
+				decompressed_bufsize = chunk_extra;
+				free(decompressed_buffer);
+				decompressed_buffer = (unsigned char*)malloc(decompressed_bufsize);
+			}
+
+			/* read and check checksum */
+			fread(compressed_buffer, 1, chunk_size, in);
+			checksum = update_adler32(1L, compressed_buffer, chunk_size);
+			total_extracted += chunk_extra;
+
+			/* verify that the chunk data is correct */
+			if (checksum != chunk_checksum) {
+				printf("\nError: checksum mismatch. Skipped.\n");
+				printf("Got %08lX Expecting %08lX\n", checksum, chunk_checksum);
+				return -1;
+			} else {
+				/* decompress and verify */
+				remaining = lz77_decompress(compressed_buffer, chunk_size, decompressed_buffer, chunk_extra);
+				if (remaining != chunk_extra) {
+					printf("\nError: decompression failed. Skipped.\n");
+					return -1;
+				} else {
+					fwrite(decompressed_buffer, 1, chunk_extra, out);
+				}
+			}
 		}
-	#endif
+
 		/* position of next chunk */
 		fseek(in, pos + 16 + chunk_size, SEEK_SET);
 	}
+
+	/* free allocated stuff */
+	free(compressed_buffer);
+	free(decompressed_buffer);
+	free(output_file_name);
+
+	/* close working files */
+	if (out)
+		fclose(out);
+	fclose(in);
 
 	return 0;
 }
